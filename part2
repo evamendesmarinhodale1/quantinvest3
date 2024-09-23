@@ -1,0 +1,69 @@
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
+
+# Load the data from Excel file
+file_path = '/mnt/data/Problem_Set3_2024.xlsx'
+
+# Assuming the 25 size and BE/ME portfolios are in the second sheet
+data = pd.read_excel(file_path, sheet_name='25 size and BE/ME portfolios')
+
+# Assuming the market portfolio returns are in the third sheet
+market_data = pd.read_excel(file_path, sheet_name='Market portfolio')
+
+# Clean the data by removing entries where returns are less than -1 (missing data)
+data_cleaned = data.replace([-99.99, -999], np.nan).dropna()
+market_cleaned = market_data.replace([-99.99, -999], np.nan).dropna()
+
+# Extract returns for portfolios and the market
+portfolio_returns = data_cleaned.iloc[:, 1:]  # Assuming first column is date
+market_returns = market_cleaned['RM']  # Assuming 'RM' is the market return column
+
+# Estimate Betas (βiM) for each portfolio using OLS
+betas = []
+for i in range(portfolio_returns.shape[1]):
+    X = sm.add_constant(market_returns)  # Add constant for intercept
+    y = portfolio_returns.iloc[:, i]
+    model = sm.OLS(y, X).fit()
+    betas.append(model.params[1])  # The slope (market beta)
+
+# Convert betas to a DataFrame for easier manipulation
+beta_matrix = np.array(betas)
+
+# Now perform the Fama-MacBeth regression for each month
+gamma_0_list = []
+gamma_M_list = []
+
+# Loop over each month to run cross-sectional regressions
+for t in range(len(portfolio_returns)):
+    # Regress portfolio returns on the estimated betas
+    X = sm.add_constant(beta_matrix)  # The constant term and the betas
+    y = portfolio_returns.iloc[t, :].values  # Returns for the current month
+    model = sm.OLS(y, X).fit()
+    
+    # Save the γ0 and γM for each month
+    gamma_0_list.append(model.params[0])  # γ0
+    gamma_M_list.append(model.params[1])  # γM
+
+# Compute the time-series averages of γ0 and γM
+gamma_0_avg = np.mean(gamma_0_list)
+gamma_M_avg = np.mean(gamma_M_list)
+
+# Compute the standard errors
+gamma_0_std = np.std(gamma_0_list, ddof=1) / np.sqrt(len(gamma_0_list))
+gamma_M_std = np.std(gamma_M_list, ddof=1) / np.sqrt(len(gamma_M_list))
+
+# Compute the t-statistics
+gamma_0_t_stat = gamma_0_avg / gamma_0_std
+gamma_M_t_stat = gamma_M_avg / gamma_M_std
+
+# Display the results
+result = pd.DataFrame({
+    'Coefficient': ['gamma_0', 'gamma_M'],
+    'Average': [gamma_0_avg, gamma_M_avg],
+    'Standard Error': [gamma_0_std, gamma_M_std],
+    't-statistic': [gamma_0_t_stat, gamma_M_t_stat]
+})
+
+import ace_tools as tools; tools.display_dataframe_to_user(name="Fama-MacBeth Results for γ0 and γM", dataframe=result)
