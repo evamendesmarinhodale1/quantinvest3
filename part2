@@ -4,7 +4,7 @@ import statsmodels.api as sm
 from sklearn.linear_model import LinearRegression
 
 # Load the data from Excel file
-file_path = '/mnt/data/Problem_Set3_2024.xlsx'
+file_path = '/Users/evadale/Desktop/Problem_Set3_2024.xlsx'
 
 # Assuming the 25 size and BE/ME portfolios are in the second sheet
 data = pd.read_excel(file_path, sheet_name='25 size and BE/ME portfolios')
